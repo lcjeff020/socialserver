@@ -1,0 +1,73 @@
+social-media-manager/
+├── app/
+│   ├── api/                    # API 接口层
+│   │   ├── v1/
+│   │   │   ├── auth.py        # 认证相关接口
+│   │   │   ├── posts.py       # 内容发布接口
+│   │   │   ├── accounts.py    # 账号管理接口
+│   │   │   ├── teams.py       # 团队管理接口
+│   │   │   ├── devices.py     # 设备管理接口
+│   │   │   └── analytics.py   # 数据分析接口
+│   │   └── deps.py            # 依赖注入
+│   │
+│   ├── core/                   # 核心配置
+│   │   ├── config.py          # 配置管理
+│   │   ├── security.py        # 安全相关
+│   │   ├── events.py          # 事件管理
+│   │   └── middleware.py      # 中间件
+│   │
+│   ├── models/                 # 数据模型
+│   │   ├── base.py            # 基础模型
+│   │   ├── user.py            # 用户模型
+│   │   ├── team.py            # 团队模型
+│   │   ├── account.py         # 社交账号模型
+│   │   ├── content.py         # 内容模型
+│   │   ├── device.py          # 设备模型
+│   │   └── task.py            # 任务模型
+│   │
+│   ├── schemas/               # Pydantic 模型
+│   │   ├── user.py
+│   │   ├── team.py
+│   │   ├── content.py
+│   │   └── task.py
+│   │
+│   ├── services/             # 业务服务层
+│   │   ├── base.py          # 基础服务
+│   │   ├── auth.py          # 认证服务
+│   │   ├── content.py       # 内容服务
+│   │   ├── analytics.py     # 分析服务
+│   │   ├── storage.py       # 存储服务
+│   │   ├── device.py        # 设备服务
+│   │   └── report.py        # 报告服务
+│   │
+│   ├── platforms/           # 平台集成
+│   │   ├── base.py         # 平台基类
+│   │   ├── tiktok.py       # TikTok实现
+│   │   ├── instagram.py    # Instagram实现
+│   │   └── factory.py      # 平台工厂
+│   │
+│   ├── tasks/              # 异步任务
+│   │   ├── celery_app.py   # Celery配置
+│   │   ├── content.py      # 内容相关任务
+│   │   └── analytics.py    # 分析相关任务
+│   │
+│   ├── scheduler/          # 任务调度
+│   │   └── scheduler.py    # 调度器实现
+│   │
+│   ├── cache/             # 缓存管理
+│   │   ├── redis.py       # Redis配置
+│   │   └── decorators.py  # 缓存装饰器
+│   │
+│   └── utils/            # 工具函数
+│       ├── logger.py     # 日志工具
+│       ├── constants.py  # 常量定义
+│       └── validators.py # 验证工具
+│
+├── tests/               # 测试目录
+│   ├── api/
+│   ├── services/
+│   └── conftest.py
+│
+├── alembic/            # 数据库迁移
+├── requirements.txt    # 依赖管理
+└── main.py            # 应用入口
