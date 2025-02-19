@@ -12,7 +12,9 @@
 """
 
 from typing import List, Union
-from pydantic import BaseSettings, AnyHttpUrl, validator
+from pydantic_settings import BaseSettings
+from pydantic import AnyHttpUrl, validator
+import logging
 
 class Settings(BaseSettings):
     """全局配置类
@@ -90,7 +92,22 @@ class Settings(BaseSettings):
     # YouTube配置
     YOUTUBE_CLIENT_SECRETS_FILE: str = "client_secrets.json"
     
+    # 添加日志配置
+    LOG_LEVEL: str = "INFO"
+    LOG_FORMAT: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    LOG_FILE: str = "app.log"
+    
+    @validator("LOG_LEVEL", pre=True)
+    def validate_log_level(cls, v: str) -> str:
+        """验证日志级别"""
+        valid_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
+        v = v.upper()
+        if v not in valid_levels:
+            return "INFO"
+        return v
+
     class Config:
         case_sensitive = True
+        env_file = ".env"
 
 settings = Settings() 

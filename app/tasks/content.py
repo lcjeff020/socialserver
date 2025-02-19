@@ -11,6 +11,14 @@ from typing import Dict, Any
 from app.tasks.celery_app import celery
 from app.db.session import SessionLocal
 from app import models
+from app.platforms.factory import PlatformFactory
+
+def execute_platform_publish(content: models.Content) -> Dict[str, Any]:
+    """
+    执行平台内容发布
+    """
+    platform = PlatformFactory.get_platform(content.platform)
+    return platform.publish_content(content)
 
 @celery.task(bind=True, max_retries=3)
 def publish_content(self, content_id: int) -> Dict[str, Any]:
