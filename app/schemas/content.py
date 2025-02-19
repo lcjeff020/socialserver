@@ -35,7 +35,7 @@ class ContentInDBBase(ContentBase):
     published_at: Optional[datetime] = None
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class Content(ContentInDBBase):
     pass 

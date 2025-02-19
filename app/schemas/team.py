@@ -28,7 +28,7 @@ class TeamInDBBase(TeamBase):
     updated_at: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class Team(TeamInDBBase):
     pass
@@ -43,4 +43,4 @@ class TeamMember(TeamMemberCreate):
     created_at: datetime
 
     class Config:
-        orm_mode = True 
+        from_attributes = True

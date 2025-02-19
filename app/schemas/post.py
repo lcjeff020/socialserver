@@ -35,7 +35,7 @@ class PostInDBBase(PostBase):
     analytics: Optional[Dict[str, Any]] = {}
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class Post(PostInDBBase):
     pass 
