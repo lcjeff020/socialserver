@@ -4,4 +4,5 @@
 # pip3 install -r requirements.txt
 
 # 启动应用
-python app.main:app --host 0.0.0.0 --port 8888 --reload 
+python app.main:app --host 0.0.0.0 --port 8888 --reload
+uvicorn app.main:app --host 0.0.0.0 --port 8888 --reload

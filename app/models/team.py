@@ -13,24 +13,44 @@
 - 团队资源隔离
 """
 
-from sqlalchemy import Column, Integer, String, ForeignKey, Table
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, JSON
 from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
 from app.db.base_class import Base
 
-team_members = Table(
-    "team_members",
-    Base.metadata,
-    Column("team_id", Integer, ForeignKey("teams.id")),
-    Column("user_id", Integer, ForeignKey("users.id")),
-    Column("role", String)  # admin, editor, viewer
-)
-
 class Team(Base):
+    """团队模型"""
     __tablename__ = "teams"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, index=True)
-    description = Column(String, nullable=True)
-    
-    members = relationship("User", secondary=team_members, backref="teams")
-    accounts = relationship("Account", back_populates="team") 
+    name = Column(String(255), nullable=False)
+    description = Column(String(1000))
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    is_active = Column(Boolean, default=True)
+    config = Column(JSON)
+
+    # 审计字段
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # 关系
+    owner = relationship("User", back_populates="teams")
+    members = relationship("TeamMember", back_populates="team")
+
+    def __repr__(self):
+        return f"<Team {self.name}>"
+
+
+class TeamMember(Base):
+    """团队成员模型"""
+    __tablename__ = "team_members"
+
+    id = Column(Integer, primary_key=True, index=True)
+    team_id = Column(Integer, ForeignKey("teams.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    role = Column(String(50), default="member")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # 关系
+    team = relationship("Team", back_populates="members")
+    user = relationship("User") 

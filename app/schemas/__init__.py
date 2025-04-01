@@ -20,6 +20,14 @@ from app.schemas.device import (
 )
 # 导入内容相关的schemas
 from app.schemas.content import Content, ContentCreate, ContentUpdate
+# 导入分析相关的schemas
+from app.schemas.analytics import (
+    ContentAnalytics,
+    AccountAnalytics,
+    TrendsAnalysis,
+    PerformanceReport,
+    AnalyticsSummary
+)
 
 # 定义 __all__ 列表，指定模块中公开的类和模型
 __all__ = [
@@ -29,5 +37,10 @@ __all__ = [
     "Team", "TeamCreate", "TeamUpdate", "TeamMember", "TeamMemberCreate",
     "Post", "PostCreate", "PostUpdate",
     "Device", "DeviceCreate", "DeviceUpdate", "DeviceRegister", "DeviceConfigUpdate", "DeviceHeartbeat",
-    "Content", "ContentCreate", "ContentUpdate"
+    "Content", "ContentCreate", "ContentUpdate",
+    "ContentAnalytics",
+    "AccountAnalytics",
+    "TrendsAnalysis",
+    "PerformanceReport",
+    "AnalyticsSummary"
 ]

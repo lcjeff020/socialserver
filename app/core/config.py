@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     # 安全设置
     SECRET_KEY: str = "your-secret-key-here"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8  # 8天
+    ALGORITHM: str = "HS256"  # JWT加密算法
     
     # BACKEND_CORS_ORIGINS is a comma-separated list of origins
     BACKEND_CORS_ORIGINS: List[AnyHttpUrl] = []

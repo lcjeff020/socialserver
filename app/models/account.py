@@ -28,6 +28,7 @@ class Account(Base):
     
     # 定义关系，关联用户和任务模型
     user = relationship("User", back_populates="accounts")
+    contents = relationship("Content", back_populates="account")
     tasks = relationship("Task", back_populates="account")
 
     def __repr__(self):

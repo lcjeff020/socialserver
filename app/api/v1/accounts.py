@@ -16,11 +16,12 @@ from app import models, schemas
 from app.api import deps
 from app.services.account_service import AccountService
 from app.utils.logger import logger
+from app.schemas.common import ResponseModel
 
 router = APIRouter()
 account_service = AccountService()
 
-@router.post("/", response_model=schemas.Account)
+@router.post("/", response_model=ResponseModel[schemas.Account])
 async def create_account(
     *,
     db: Session = Depends(deps.get_mysql_db),
@@ -39,9 +40,10 @@ async def create_account(
             platform_id=account_in.platform_id
         )
         if existing_account:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Account already exists for platform {account_in.platform}"
+            return ResponseModel(
+                code=201,
+                msg="该平台账号已存在",
+                data={}
             )
 
         account = await account_service.create_account(
@@ -49,16 +51,21 @@ async def create_account(
             account_in=account_in,
             user_id=current_user.id
         )
-        return account
-
-    except Exception as e:
-        logger.error(f"Create account error: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
+        return ResponseModel(
+            code=200,
+            msg="创建成功",
+            data=account
         )
 
-@router.get("/", response_model=List[schemas.Account])
+    except Exception as e:
+        logger.error(f"创建账号错误: {str(e)}")
+        return ResponseModel(
+            code=201,
+            msg="创建账号失败",
+            data={"error": f"{str(e)}"}
+        )
+
+@router.get("/", response_model=ResponseModel[List[schemas.Account]])
 async def get_accounts(
     db: Session = Depends(deps.get_mysql_db),
     skip: int = 0,
@@ -77,12 +84,17 @@ async def get_accounts(
             limit=limit,
             platform=platform
         )
-        return accounts
+        return ResponseModel(
+            code=200,
+            msg="获取成功",
+            data=accounts
+        )
     except Exception as e:
-        logger.error(f"Get accounts error: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
+        logger.error(f"获取账号列表错误: {str(e)}")
+        return ResponseModel(
+            code=201,
+            msg="获取账号列表失败",
+            data={"error": f"{str(e)}"}
         )
 
 @router.get("/{account_id}", response_model=schemas.Account)
@@ -144,7 +156,7 @@ async def update_account(
             detail=str(e)
         )
 
-@router.delete("/{account_id}")
+@router.delete("/{account_id}", response_model=ResponseModel[dict])
 async def delete_account(
     *,
     db: Session = Depends(deps.get_mysql_db),
@@ -154,25 +166,27 @@ async def delete_account(
     """
     删除账号
     """
-    account = await account_service.get_account(db=db, account_id=account_id)
-    if not account:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Account not found"
-        )
-    if account.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not enough permissions"
-        )
     try:
+        account = await account_service.get_account(db=db, account_id=account_id)
+        if not account or account.user_id != current_user.id:
+            return ResponseModel(
+                code=201,
+                msg="账号不存在或无权限",
+                data={}
+            )
+        
         await account_service.delete_account(db=db, account_id=account_id)
-        return {"msg": "Account deleted successfully"}
+        return ResponseModel(
+            code=200,
+            msg="删除成功",
+            data={"account_id": account_id}
+        )
     except Exception as e:
-        logger.error(f"Delete account error: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
+        logger.error(f"删除账号错误: {str(e)}")
+        return ResponseModel(
+            code=201,
+            msg="删除账号失败",
+            data={"error": f"{str(e)}"}
         )
 
 @router.post("/{account_id}/refresh-token")

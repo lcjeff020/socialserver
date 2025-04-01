@@ -1,175 +1,131 @@
 """
-内容发布API模块
-
-提供内容管理相关的端点：
-1. 创建内容
-2. 更新内容
-3. 删除内容
-4. 获取内容列表
-5. 内容发布控制
+内容发布相关的API路由
 """
 
-from typing import Any, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+from typing import Any, List
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-
-from app import models, schemas
+from app import schemas
 from app.api import deps
 from app.services.content_service import ContentService
-from app.utils.logger import logger
+from app.schemas.common import ResponseModel
+import logging
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 content_service = ContentService()
 
-@router.post("/", response_model=schemas.Post)
-async def create_post(
-    *,
-    db: Session = Depends(deps.get_db),
-    post_in: schemas.PostCreate,
-    files: Optional[List[UploadFile]] = File(None),
-    current_user: models.User = Depends(deps.get_current_user)
-) -> Any:
-    """
-    创建新内容
-    """
-    try:
-        post = await content_service.create_content(
-            db=db,
-            content_data=post_in,
-            media_files=files or [],
-            user=current_user
-        )
-        return post
-    except Exception as e:
-        logger.error(f"Create post error: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
-        )
-
-@router.get("/", response_model=List[schemas.Post])
-async def get_posts(
-    db: Session = Depends(deps.get_db),
+@router.get("/", response_model=ResponseModel[List[schemas.Content]])
+async def list_contents(
+    db: Session = Depends(deps.get_mysql_db),
     skip: int = 0,
     limit: int = 100,
-    status: Optional[str] = None,
-    platform: Optional[str] = None,
-    current_user: models.User = Depends(deps.get_current_user)
+    current_user = Depends(deps.get_current_user)
 ) -> Any:
-    """
-    获取内容列表
-    """
+    """获取内容列表"""
     try:
-        posts = await content_service.get_user_posts(
-            db=db,
-            user=current_user,
-            skip=skip,
-            limit=limit,
-            status=status,
-            platform=platform
+        contents = await content_service.get_user_contents(
+            db, user_id=current_user.id, skip=skip, limit=limit
         )
-        return posts
+        return ResponseModel(
+            code=200,
+            msg="获取成功",
+            data=contents
+        )
     except Exception as e:
-        logger.error(f"Get posts error: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
+        logger.error(f"获取内容列表错误: {str(e)}")
+        return ResponseModel(
+            code=201,
+            msg="获取内容列表失败",
+            data={"error": f"{str(e)}"}
         )
 
-@router.put("/{post_id}", response_model=schemas.Post)
-async def update_post(
+@router.post("/", response_model=ResponseModel[schemas.Content])
+async def create_content(
     *,
-    db: Session = Depends(deps.get_db),
-    post_id: int,
-    post_in: schemas.PostUpdate,
-    current_user: models.User = Depends(deps.get_current_user)
+    db: Session = Depends(deps.get_mysql_db),
+    content_in: schemas.ContentCreate,
+    current_user = Depends(deps.get_current_user)
 ) -> Any:
-    """
-    更新内容
-    """
-    post = await content_service.get_post(db=db, post_id=post_id)
-    if not post:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Post not found"
-        )
-    if post.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not enough permissions"
-        )
+    """创建新内容"""
     try:
-        post = await content_service.update_post(
-            db=db, 
-            post=post,
-            post_in=post_in
+        content = await content_service.create(
+            db, obj_in=content_in, user_id=current_user.id
         )
-        return post
+        return ResponseModel(
+            code=200,
+            msg="创建成功",
+            data=content
+        )
     except Exception as e:
-        logger.error(f"Update post error: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
+        logger.error(f"创建内容错误: {str(e)}")
+        return ResponseModel(
+            code=201,
+            msg="创建内容失败",
+            data={"error": f"{str(e)}"}
         )
 
-@router.delete("/{post_id}")
-async def delete_post(
+@router.put("/{content_id}", response_model=ResponseModel[schemas.Content])
+async def update_content(
     *,
-    db: Session = Depends(deps.get_db),
-    post_id: int,
-    current_user: models.User = Depends(deps.get_current_user)
+    db: Session = Depends(deps.get_mysql_db),
+    content_id: int,
+    content_in: schemas.ContentUpdate,
+    current_user = Depends(deps.get_current_user)
 ) -> Any:
-    """
-    删除内容
-    """
-    post = await content_service.get_post(db=db, post_id=post_id)
-    if not post:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Post not found"
-        )
-    if post.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not enough permissions"
-        )
+    """更新内容"""
     try:
-        await content_service.delete_post(db=db, post_id=post_id)
-        return {"msg": "Post deleted successfully"}
+        content = await content_service.get(db, id=content_id)
+        if not content or content.user_id != current_user.id:
+            return ResponseModel(
+                code=201,
+                msg="内容不存在或无权限",
+                data={}
+            )
+        
+        content = await content_service.update(
+            db, db_obj=content, obj_in=content_in
+        )
+        return ResponseModel(
+            code=200,
+            msg="更新成功",
+            data=content
+        )
     except Exception as e:
-        logger.error(f"Delete post error: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
+        logger.error(f"更新内容错误: {str(e)}")
+        return ResponseModel(
+            code=201,
+            msg="更新内容失败",
+            data={"error": f"{str(e)}"}
         )
 
-@router.post("/{post_id}/publish")
-async def publish_post(
+@router.delete("/{content_id}", response_model=ResponseModel[dict])
+async def delete_content(
     *,
-    db: Session = Depends(deps.get_db),
-    post_id: int,
-    current_user: models.User = Depends(deps.get_current_user)
+    db: Session = Depends(deps.get_mysql_db),
+    content_id: int,
+    current_user = Depends(deps.get_current_user)
 ) -> Any:
-    """
-    立即发布内容
-    """
-    post = await content_service.get_post(db=db, post_id=post_id)
-    if not post:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Post not found"
-        )
-    if post.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not enough permissions"
-        )
+    """删除内容"""
     try:
-        result = await content_service.publish_post(db=db, post_id=post_id)
-        return result
+        content = await content_service.get(db, id=content_id)
+        if not content or content.user_id != current_user.id:
+            return ResponseModel(
+                code=201,
+                msg="内容不存在或无权限",
+                data={}
+            )
+        
+        await content_service.delete(db, id=content_id)
+        return ResponseModel(
+            code=200,
+            msg="删除成功",
+            data={"content_id": content_id}
+        )
     except Exception as e:
-        logger.error(f"Publish post error: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
+        logger.error(f"删除内容错误: {str(e)}")
+        return ResponseModel(
+            code=201,
+            msg="删除内容失败",
+            data={"error": f"{str(e)}"}
         ) 

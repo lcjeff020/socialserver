@@ -1,111 +1,150 @@
 """
-团队管理API模块
-
-提供团队管理相关功能：
-1. 团队创建和管理
-2. 成员管理
-3. 权限控制
-4. 团队资源管理
+团队相关的API路由
 """
 
-from typing import Any, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from typing import Any, List
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-
-from app import models, schemas
+from app import schemas
 from app.api import deps
 from app.services.team_service import TeamService
-from app.utils.logger import logger
+from app.schemas.common import ResponseModel
+import logging
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 team_service = TeamService()
 
-@router.post("/", response_model=schemas.Team)
+@router.get("/", response_model=ResponseModel[List[schemas.Team]])
+async def list_teams(
+    db: Session = Depends(deps.get_mysql_db),
+    current_user = Depends(deps.get_current_user)
+) -> Any:
+    """获取用户的团队列表"""
+    try:
+        teams = await team_service.get_user_teams(db, user_id=current_user.id)
+        return ResponseModel(
+            code=200,
+            msg="获取成功",
+            data=teams
+        )
+    except Exception as e:
+        logger.error(f"获取团队列表错误: {str(e)}")
+        return ResponseModel(
+            code=201,
+            msg="获取团队列表失败",
+            data={"error": f"{str(e)}"}
+        )
+
+@router.post("/", response_model=ResponseModel[schemas.Team])
 async def create_team(
     *,
     db: Session = Depends(deps.get_mysql_db),
     team_in: schemas.TeamCreate,
-    current_user: models.User = Depends(deps.get_current_user)
+    current_user = Depends(deps.get_current_user)
 ) -> Any:
     """创建新团队"""
     try:
-        team = await team_service.create_team(
-            db=db,
-            team_in=team_in,
-            owner_id=current_user.id
+        team = await team_service.create_team(db, team_in=team_in, owner_id=current_user.id)
+        return ResponseModel(
+            code=200,
+            msg="创建成功",
+            data=team
         )
-        return team
     except Exception as e:
-        logger.error(f"Create team error: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
+        logger.error(f"创建团队错误: {str(e)}")
+        return ResponseModel(
+            code=201,
+            msg="创建团队失败",
+            data={"error": f"{str(e)}"}
         )
 
-@router.get("/", response_model=List[schemas.Team])
-async def get_teams(
-    db: Session = Depends(deps.get_mysql_db),
-    current_user: models.User = Depends(deps.get_current_user)
-) -> Any:
-    """获取用户相关的团队列表"""
-    try:
-        teams = await team_service.get_user_teams(db=db, user_id=current_user.id)
-        return teams
-    except Exception as e:
-        logger.error(f"Get teams error: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
-        )
-
-@router.post("/{team_id}/members", response_model=schemas.TeamMember)
-async def add_team_member(
+@router.get("/{team_id}", response_model=ResponseModel[schemas.Team])
+async def get_team(
     *,
     db: Session = Depends(deps.get_mysql_db),
     team_id: int,
-    member_in: schemas.TeamMemberCreate,
-    current_user: models.User = Depends(deps.get_current_user)
+    current_user = Depends(deps.get_current_user)
 ) -> Any:
-    """添加团队成员"""
-    if not await team_service.is_team_admin(db, team_id, current_user.id):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not enough permissions"
-        )
+    """获取团队详情"""
     try:
-        member = await team_service.add_member(
-            db=db,
-            team_id=team_id,
-            member_in=member_in
+        team = await team_service.get_team(db, team_id=team_id)
+        if not team or team.owner_id != current_user.id:
+            return ResponseModel(
+                code=201,
+                msg="团队不存在或无权限",
+                data={}
+            )
+        return ResponseModel(
+            code=200,
+            msg="获取成功",
+            data=team
         )
-        return member
     except Exception as e:
-        logger.error(f"Add team member error: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
+        logger.error(f"获取团队详情错误: {str(e)}")
+        return ResponseModel(
+            code=201,
+            msg="获取团队详情失败",
+            data={"error": f"{str(e)}"}
         )
 
-@router.delete("/{team_id}/members/{user_id}")
-async def remove_team_member(
+@router.put("/{team_id}", response_model=ResponseModel[schemas.Team])
+async def update_team(
     *,
     db: Session = Depends(deps.get_mysql_db),
     team_id: int,
-    user_id: int,
-    current_user: models.User = Depends(deps.get_current_user)
+    team_in: schemas.TeamUpdate,
+    current_user = Depends(deps.get_current_user)
 ) -> Any:
-    """移除团队成员"""
-    if not await team_service.is_team_admin(db, team_id, current_user.id):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not enough permissions"
-        )
+    """更新团队信息"""
     try:
-        await team_service.remove_member(db=db, team_id=team_id, user_id=user_id)
-        return {"msg": "Member removed successfully"}
+        team = await team_service.get_team(db, team_id=team_id)
+        if not team or team.owner_id != current_user.id:
+            return ResponseModel(
+                code=201,
+                msg="团队不存在或无权限",
+                data="团队不存在或无权限修改"
+            )
+        team = await team_service.update_team(db, team=team, team_in=team_in)
+        return ResponseModel(
+            code=200,
+            msg="更新成功",
+            data=team
+        )
     except Exception as e:
-        logger.error(f"Remove team member error: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
+        logger.error(f"更新团队错误: {str(e)}")
+        return ResponseModel(
+            code=201,
+            msg="更新团队失败",
+            data={"error": f"{str(e)}"}
+        )
+
+@router.delete("/{team_id}", response_model=ResponseModel[dict])
+async def delete_team(
+    *,
+    db: Session = Depends(deps.get_mysql_db),
+    team_id: int,
+    current_user = Depends(deps.get_current_user)
+) -> Any:
+    """删除团队"""
+    try:
+        team = await team_service.get_team(db, team_id=team_id)
+        if not team or team.owner_id != current_user.id:
+            return ResponseModel(
+                code=201,
+                msg="团队不存在或无权限",
+                data={}
+            )
+        await team_service.delete_team(db, team_id=team_id)
+        return ResponseModel(
+            code=200,
+            msg="删除成功",
+            data={"team_id": team_id}
+        )
+    except Exception as e:
+        logger.error(f"删除团队错误: {str(e)}")
+        return ResponseModel(
+            code=201,
+            msg="删除团队失败",
+            data={"error": f"{str(e)}"}
         ) 
